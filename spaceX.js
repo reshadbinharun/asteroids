@@ -16,6 +16,8 @@ TEMPLATE MATRICES:
 [0,0,0,0,0,0,0,0,0,0]]
 
 
+Improvements to design: use createMatrix to create both asteroids and player with same dimensions as canvas
+
 */
 //GAME PARAMETERS
 var gameOn = true;
@@ -155,6 +157,8 @@ function update(time = 0) {
     if (Counter > Interval) {
         movePlayer(2);
         moveAsteroids(2);
+        score += Math.floor(Counter/1000);
+        document.getElementById("score").innerHTML = score;
     }
 
     lastTime = time;
@@ -197,10 +201,100 @@ function play(){
 		//if health empty, gameOn false
 }
 
+//matrix manipulation link: https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/Matrix_math_for_the_web
+
+function collide() {
+	//populate set with off-set positions of all 1s
+	let mat = createEmptyMatrix(canvas_height, canvas_width); 
+	for (let i = 0; i < asteroidsInPlay.length; i++){
+		//var allOnes = new Set();
+		for (let x = 0; x < asteroidsInPlay[i].matrix.length; x++){
+			for (let y = 0; y < asteroidsInPlay[i].matrix[0].length; y++){
+				//console.log("in loop");
+				
+				if (asteroidsInPlay[i].matrix[x][y] === 1){
+					mat[asteroidsInPlay[i].posX + x][asteroidsInPlay[i].posY + y] += 1;
+					//allOnes.add([asteroidsInPlay[i].posX + x, asteroidsInPlay[i].posY + y]);
+					console.log("detected one at",asteroidsInPlay[i].posX + x, asteroidsInPlay[i].posY + y);
+				}
+				
+			}
+		}
+		//console.log("contents of set", allOnes);
+	//fill up empty matrix
+	//console.log("matrix now: ", mat);
+	}
+
+		
+		for (let i = 0; i < mat.length; i++){
+			for (let j = 0; j < mat[0].length; j++){
+				if (mat[i][j] == 1) console.log("1");
+				else if (mat[i][j] == 2) console.log("2");
+				/*
+				if (allOnes.has([i,j])){
+					mat[i][j] += 1;
+					console.log("found 1 and sum at ");
+					console.log(i,j);
+					console.log("is ", mat[i][j]);
+				}
+				*/
+			}
+		}
+		
+			
+	//now mat has all 1 sums from asteroids
+	//console.log(mat);
+}
+
+
+function createEmptyMatrix(row,col){
+
+	let matrix = [];
+    while (col) {
+        matrix.push(new Array(row).fill(0));
+        col--;
+    }
+    return matrix;
+}
+
+
 //debugging functions
 createAsteroid();
 createAsteroid();
 draw();
-update();
+collide();
+//update();
 
+//Deprecated:
+
+function collideDep(){
+	//brute force: check if any asteroid collides with ship
+	/*
+	for (let i = 0; i < asteroidsInPlay.length; i++){
+		for (let row = 0; row < asteroidsInPlay[i].length; row++){
+			for (let col = 0; col < asteroidsInPlay[i][0].length; col++){
+
+			}
+		}
+	}
+	*/
+	//alternative algorithm: add all asteroids to empty canvas matrix
+	//get {row,col} of all pixels that have value greater than 0
+	//add player to that matrix, if any pixel increments, there is a collision
+	let matrixEmpty = createEmptyMatrix(canvas_height, canvas_width);
+	//add all asteroids
+	
+
+	for (let i = 0; i < asteroidsInPlay.length; i++){
+		for (let row = 0; row < canvas_height; row++){
+			for (let col = 0; col < canvas_width; col++){
+				if (row > asteroidsInPlay[i].posX && row < (asteroidsInPlay[i].posX + 10) && col > asteroidsInPlay[i].posY && col < (asteroidsInPlay[i].posY + 10)){
+					matrixEmpty[row][col] += asteroidsInPlay[i].matrix[row - asteroidsInPlay[i].posX][col - asteroidsInPlay[i].posY];
+				}
+			}
+		}	
+	}
+	
+	drawMatrix(matrixEmpty); //for debugging
+}
 
