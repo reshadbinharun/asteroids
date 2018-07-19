@@ -25,6 +25,7 @@ var score = 0;
 
 const canvas_height = 300;
 const canvas_width = 400;
+const matrix_frame = 10;
 var asteroids = [
 	{
 		type : "small",
@@ -39,7 +40,8 @@ var asteroids = [
 				[0,0,0,1,1,1,1,0,0,0],
 				[0,0,0,0,1,0,0,0,0,0],
 				[0,0,0,0,0,0,0,0,0,0],
-				[0,0,0,0,0,0,0,0,0,0]]
+				[0,0,0,0,0,0,0,0,0,0]],
+		speed: 1
 	},
 	{
 		type : "medium",
@@ -54,7 +56,8 @@ var asteroids = [
 				[0,0,1,1,1,1,1,1,0,0],
 				[0,0,0,1,1,1,1,0,0,0],
 				[0,0,0,0,0,0,0,0,0,0],
-				[0,0,0,0,0,0,0,0,0,0]]
+				[0,0,0,0,0,0,0,0,0,0]],
+		speed: 1
 	},
 	{
 		type : "large",
@@ -69,7 +72,8 @@ var asteroids = [
 				[0,1,1,1,1,0,0,1,0,0],
 				[0,0,1,1,1,1,1,1,0,0],
 				[0,0,0,1,1,0,0,1,0,0],
-				[0,0,1,1,1,1,1,0,0,0]]
+				[0,0,1,1,1,1,1,0,0,0]],
+		speed: 1
 	},
 
 ];
@@ -105,15 +109,17 @@ function placeAsteroid(asteroid) {
 		asteroid.posY = entryY%(canvas_height/2);
 		asteroid.posX = canvas_width/2;
 		asteroidsInPlay.push(asteroid); 
-		console.log("All asteroids in play:", asteroidsInPlay);
+		//console.log("All asteroids in play:", asteroidsInPlay);
 	}
 	
 }
 
-function createAsteroid(){
+function createAsteroid(speed){
 	let pickNum = Math.floor(Math.random()*asteroids.length);
 	let asteroid = asteroids[pickNum];
-	console.log(asteroid);
+	asteroid.speed = speed;
+	//console.log(asteroid);
+	console.log("created asteroid");
 	placeAsteroid(asteroid);
 }
 
@@ -126,14 +132,16 @@ function drawMatrix(matrix, offset, color){
 			context.fillStyle = color;
 			if (matrix[row][col] === 1)
 				context.fillRect(offset.x + col, offset.y + row, object_scale, object_scale); //flip row and col
+				//context.fillRect() expects the first argument for horizontal filling, i.e. column fills
 		}
 	}
 }
 
 function draw(){
 	console.log('in draw function');
+	console.log("number of asteroids in play:", asteroidsInPlay.length);
 	context.fillStyle = '#000';
-    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillRect(0, 0, canvas.height, canvas.width);
     //draw player
     drawMatrix(player.matrix, {x: player.posY/2, y: player.posX/2}, "red"); //flip x and y for player
     for (let i = 0; i < asteroidsInPlay.length; i++){
@@ -151,19 +159,29 @@ let Interval = 250;
 
 let lastTime = 0;
 function update(time = 0) {
+	if (!gameOn) return;
     const deltaTime = time - lastTime;
+    makeAsteroid = Math.floor(Math.random()*10);
+    if (makeAsteroid > 5){
+    	speed = Math.floor(Math.random()*2) + 1;
+    	createAsteroid(speed);	
+    } 
     Counter += deltaTime;
     console.log(Counter);
     if (Counter > Interval) {
         movePlayer(2);
-        moveAsteroids(2);
+        moveAsteroids();
         score += Math.floor(Counter/1000);
         document.getElementById("score").innerHTML = score;
     }
+    if (collide()){
+    	document.getElementById("score").innerHTML = "Game Over!";
+    	gameOn = false;
+    } 
 
     lastTime = time;
     draw();
-    requestAnimationFrame(update);
+    requestAnimationFrame(update); //creates loop
 }
 
 document.addEventListener('keydown', event =>{
@@ -179,17 +197,30 @@ document.addEventListener('keydown', event =>{
 
 function movePlayer(dir){
 	//player.posY += dir;
-	player.posY = (player.posY + dir) % canvas_height;
+	//player.posY = Math.abs(player.posY + dir) % canvas_height;
+	curr_pos = Math.abs(player.posY + dir) % canvas_height;
+	if (curr_pos + 5 == canvas_height) curr_pos = matrix_frame/2;
+	else if (curr_pos - 5 == 0) curr_pos = canvas_height - matrix_frame/2;
+	player.posY = curr_pos; 
 }
 
-function moveAsteroids(dir){
+function moveAsteroids(){
 	for (let i = 0; i < asteroidsInPlay.length; i++){
-		asteroidsInPlay[i].posX -= dir;
+		asteroidsInPlay[i].posX -= asteroidsInPlay[i].speed;
+		//asteroidsInPlay[i].posX = (asteroidsInPlay[i].posX + dir) % canvas_width;
+		if (asteroidsInPlay[i].posX <= matrix_frame/2) asteroidsInPlay.splice(i,1); //removes the asteroid that has 0 position
 	}
 }
 
 function movePlayerEvent(dir){
-	player.posX = (player.posX + dir) % canvas_width;
+	curr_pos = Math.abs(player.posX + dir) % canvas_width;
+	if (curr_pos + 5 == canvas_width) curr_pos = matrix_frame/2;
+	else if (curr_pos - 5 == 0) {
+		console.log("2nd bound");
+		curr_pos = canvas_width - matrix_frame;
+	}
+	player.posX = curr_pos;
+	//player.posX = (player.posX + dir) % canvas_width;
 }
 
 
@@ -207,43 +238,25 @@ function collide() {
 	//populate set with off-set positions of all 1s
 	let mat = createEmptyMatrix(canvas_height, canvas_width); 
 	for (let i = 0; i < asteroidsInPlay.length; i++){
-		//var allOnes = new Set();
 		for (let x = 0; x < asteroidsInPlay[i].matrix.length; x++){
 			for (let y = 0; y < asteroidsInPlay[i].matrix[0].length; y++){
-				//console.log("in loop");
-				
 				if (asteroidsInPlay[i].matrix[x][y] === 1){
 					mat[asteroidsInPlay[i].posX + x][asteroidsInPlay[i].posY + y] += 1;
-					//allOnes.add([asteroidsInPlay[i].posX + x, asteroidsInPlay[i].posY + y]);
-					console.log("detected one at",asteroidsInPlay[i].posX + x, asteroidsInPlay[i].posY + y);
 				}
 				
 			}
 		}
-		//console.log("contents of set", allOnes);
-	//fill up empty matrix
-	//console.log("matrix now: ", mat);
 	}
-
-		
-		for (let i = 0; i < mat.length; i++){
-			for (let j = 0; j < mat[0].length; j++){
-				if (mat[i][j] == 1) console.log("1");
-				else if (mat[i][j] == 2) console.log("2");
-				/*
-				if (allOnes.has([i,j])){
-					mat[i][j] += 1;
-					console.log("found 1 and sum at ");
-					console.log(i,j);
-					console.log("is ", mat[i][j]);
-				}
-				*/
+	//detecting collision
+	for (let x = 0; x < player.matrix.length; x++){
+		for (let y = 0; y < player.matrix[0].length; y++){
+			if (player.matrix[x][y] === 1){
+				if (mat[player.posX + x][player.posY + y] > 0) return true;
 			}
 		}
-		
-			
-	//now mat has all 1 sums from asteroids
-	//console.log(mat);
+	}
+	return false;
+
 }
 
 
@@ -259,11 +272,11 @@ function createEmptyMatrix(row,col){
 
 
 //debugging functions
-createAsteroid();
-createAsteroid();
+createAsteroid(2);
+createAsteroid(5);
 draw();
 collide();
-//update();
+update();
 
 //Deprecated:
 
